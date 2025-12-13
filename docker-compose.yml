@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # ActiveMQ Message Broker
+  activemq:
+    image: rmohr/activemq:5.15.9-alpine
+    ports:
+      - "61616:61616"  # JMS
+      - "8161:8161"    # Web Console
+      - "9000:9000"    # WebSocket
+    environment:
+      - ACTIVEMQ_CONFIG_TRANSPORTCONNECTORS_WEBSOCKET_ENABLED=true
+    networks:
+      - sar_atr_network
+
+  # SAR ATR Service
+  sar_atr_service:
+    build: .
+    depends_on:
+      - activemq
+    environment:
+      - BROKER_ADDRESS=ws://activemq:9000
+    volumes:
+      - ./config/service_config.yaml:/etc/sar_atr/service_config.yaml
+      - ./test_data:/data
+    networks:
+      - sar_atr_network
+
+networks:
+  sar_atr_network:
+    driver: bridge

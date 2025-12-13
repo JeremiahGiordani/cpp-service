@@ -1,0 +1,32 @@
+# Git files
+.git
+.gitignore
+
+# Build artifacts
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+README.md
+INTEGRATION_GUIDE.md
+instructions.md
+
+# Test client (not needed in container)
+test_client/
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Logs
+*.log

@@ -1,0 +1,21 @@
+# SAR ATR Service Configuration
+
+# AMQ Message Broker Configuration
+# WebSocket address of the ActiveMQ broker
+# Examples: ws://localhost:9000, ws://activemq:9000
+broker_address: "ws://localhost:9000"
+
+# Confidence Threshold
+# Minimum confidence score (0.0 to 1.0) required to publish detection results
+# Detections below this threshold will be logged but not published to UCI
+confidence_threshold: 0.7
+
+# System Identification
+# UUID identifying this system in UCI messages
+system_uuid: "12345678-1234-4567-89ab-123456789abc"
+
+# Human-readable description of this system
+system_description: "SAR ATR Processing Service"
+
+# Service version string
+service_version: "1.0.0"

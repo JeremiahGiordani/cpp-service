@@ -1,0 +1,14 @@
+# Mock Test Client Configuration
+
+# AMQ Broker Connection
+# Note: Use the STOMP protocol port (typically 61613), not WebSocket
+broker_host: "localhost"
+broker_port: 61613
+
+# Directory containing NITF files to test with
+# If empty or directory doesn't exist, will send mock file paths
+nitf_directory: ""
+
+# Interval between sending messages (seconds)
+# Only used in continuous mode
+send_interval: 5
