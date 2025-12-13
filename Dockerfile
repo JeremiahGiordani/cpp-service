@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libboost-thread-dev \
     libboost-random-dev \
     libssl-dev \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -26,6 +27,7 @@ COPY include/ ./include/
 COPY src/ ./src/
 COPY CMakeLists.txt ./
 COPY config/ ./config/
+COPY entrypoint.sh /etc/entrypoint.sh
 
 # Build the service
 RUN mkdir build && cd build && \
@@ -42,5 +44,4 @@ RUN mkdir -p /etc/sar_atr /var/log/sar_atr
 RUN cp config/service_config.yaml /etc/sar_atr/
 
 # Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/sar_atr_service"]
-CMD ["/etc/sar_atr/service_config.yaml"]
+ENTRYPOINT ["/etc/entrypoint.sh"]
