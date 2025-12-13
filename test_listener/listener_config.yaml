@@ -1,0 +1,13 @@
+# UCI Message Listener Configuration
+
+# AMQ Broker Connection
+# Note: Use the STOMP protocol port (typically 61613), not WebSocket
+broker_host: "localhost"
+broker_port: 61613
+
+# Topics to listen to
+# The listener will subscribe to all topics listed here
+topics:
+  - "Entity_uci"
+  - "AtrProcessingResult_uci"
+  # - "FileLocation_uci"  # Uncomment to also monitor input messages
