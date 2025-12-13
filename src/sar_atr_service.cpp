@@ -2,6 +2,8 @@
 #include "logger.h"
 #include <chrono>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
 
 namespace sar_atr {
 
@@ -109,8 +111,11 @@ void SarAtrService::handleFileLocationMessage(const std::string& message) {
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
             end_time - start_time);
         
-        Logger::info("Inference completed in " + std::to_string(duration.count()) + " ms");
-        Logger::info("Received " + std::to_string(detections.size()) + " detections from inference engine");
+        Logger::info("========================================");
+        Logger::info("Inference Results");
+        Logger::info("========================================");
+        Logger::info("Total inference time: " + std::to_string(duration.count()) + " ms");
+        Logger::info("Total detections found: " + std::to_string(detections.size()));
         
         // Process and publish results
         processAndPublishResults(nitf_path, detections);
@@ -127,6 +132,10 @@ void SarAtrService::processAndPublishResults(const std::string& nitf_path,
     std::vector<std::string> entity_uuids;
     int published_count = 0;
     int filtered_count = 0;
+    
+    Logger::info("========================================");
+    Logger::info("Detection Results");
+    Logger::info("========================================");
     
     // Process each detection
     for (const auto& detection : detections) {
@@ -153,14 +162,14 @@ void SarAtrService::processAndPublishResults(const std::string& nitf_path,
                 }
                 
                 amq_client_->publish("Entity_uci", entity_msg);
-                Logger::info("Published Entity_uci message for " + detection.classification);
+                Logger::info("  └─ Published Entity_uci message for " + detection.classification);
                 published_count++;
                 
             } catch (const std::exception& e) {
                 Logger::error("Failed to publish Entity message: " + std::string(e.what()));
             }
         } else {
-            Logger::info(ss.str() + " - Below confidence threshold, not publishing");
+            Logger::info(ss.str() + " - Below threshold, not publishing");
             filtered_count++;
         }
     }
@@ -178,11 +187,147 @@ void SarAtrService::processAndPublishResults(const std::string& nitf_path,
         }
     }
     
+    // Calculate bandwidth savings
+    calculateBandwidthSavings(nitf_path, detections, published_count);
+    
     // Summary
-    Logger::info("Processing summary:");
-    Logger::info("  Total detections: " + std::to_string(detections.size()));
-    Logger::info("  Published: " + std::to_string(published_count));
-    Logger::info("  Filtered (below threshold): " + std::to_string(filtered_count));
+    Logger::info("========================================");
+    Logger::info("Processing Summary");
+    Logger::info("========================================");
+    Logger::info("Total detections: " + std::to_string(detections.size()));
+    Logger::info("Published: " + std::to_string(published_count));
+    Logger::info("Filtered (below threshold): " + std::to_string(filtered_count));
+}
+
+void SarAtrService::calculateBandwidthSavings(const std::string& nitf_path,
+                                               const std::vector<DetectionResult>& detections, 
+                                               int published_count) {
+    // Default SAR image dimensions (used as fallback)
+    int image_width = 4096;
+    int image_height = 4096;
+    const int bytes_per_pixel = 2; // 16-bit SAR data
+    
+    // Try to extract actual dimensions from NITF file path
+    // For mock files or if file doesn't exist, we'll use defaults
+    bool using_actual_dimensions = false;
+    
+    // Simple heuristic: try to extract dimensions from filename patterns
+    // Real implementation would parse NITF headers, but for demo we'll use heuristics
+    size_t last_slash = nitf_path.find_last_of("/\\");
+    std::string filename = (last_slash != std::string::npos) ? nitf_path.substr(last_slash + 1) : nitf_path;
+    
+    // Look for dimension patterns in filename like "2048x2048" or "_4096_4096"
+    std::string fname_lower = filename;
+    std::transform(fname_lower.begin(), fname_lower.end(), fname_lower.begin(), ::tolower);
+    
+    // Try pattern: NNNNxNNNN
+    size_t x_pos = fname_lower.find('x');
+    if (x_pos != std::string::npos && x_pos > 0) {
+        // Look backwards for digits
+        size_t start = x_pos;
+        while (start > 0 && std::isdigit(fname_lower[start - 1])) {
+            start--;
+        }
+        // Look forwards for digits
+        size_t end = x_pos + 1;
+        while (end < fname_lower.length() && std::isdigit(fname_lower[end])) {
+            end++;
+        }
+        
+        if (start < x_pos && end > x_pos + 1) {
+            try {
+                int w = std::stoi(fname_lower.substr(start, x_pos - start));
+                int h = std::stoi(fname_lower.substr(x_pos + 1, end - x_pos - 1));
+                if (w > 0 && h > 0 && w < 100000 && h < 100000) {
+                    image_width = w;
+                    image_height = h;
+                    using_actual_dimensions = true;
+                }
+            } catch (...) {
+                // Parsing failed, use defaults
+            }
+        }
+    }
+    
+    // Calculate original file size
+    long long original_pixels = static_cast<long long>(image_width) * image_height;
+    long long original_bytes = original_pixels * bytes_per_pixel;
+    double original_mb = original_bytes / (1024.0 * 1024.0);
+    
+    // Calculate actual chip sizes from detections
+    long long total_chip_pixels = 0;
+    
+    for (const auto& detection : detections) {
+        // Calculate chip dimensions in pixels from normalized bounding box
+        int chip_width = static_cast<int>((detection.bounding_box.x2 - detection.bounding_box.x1) * image_width);
+        int chip_height = static_cast<int>((detection.bounding_box.y2 - detection.bounding_box.y1) * image_height);
+        
+        // Add some padding around detection (typical 20% on each side)
+        chip_width = static_cast<int>(chip_width * 1.4);
+        chip_height = static_cast<int>(chip_height * 1.4);
+        
+        // Ensure minimum chip size of 64x64 and maximum of 512x512
+        chip_width = std::max(64, std::min(512, chip_width));
+        chip_height = std::max(64, std::min(512, chip_height));
+        
+        long long chip_pixels = static_cast<long long>(chip_width) * chip_height;
+        total_chip_pixels += chip_pixels;
+    }
+    
+    // Only count published detections for bandwidth calculation
+    // Scale by the ratio of published to total
+    if (detections.size() > 0) {
+        total_chip_pixels = total_chip_pixels * published_count / detections.size();
+    }
+    
+    long long total_chip_bytes = total_chip_pixels * bytes_per_pixel;
+    double chip_mb = total_chip_bytes / (1024.0 * 1024.0);
+    
+    // Calculate savings
+    double saved_mb = original_mb - chip_mb;
+    double saved_percent = (saved_mb / original_mb) * 100.0;
+    
+    Logger::info("========================================");
+    Logger::info("Bandwidth Savings Estimate");
+    Logger::info("========================================");
+    
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2);
+    
+    // Show if using actual or estimated dimensions
+    std::string dim_source = using_actual_dimensions ? " (from filename)" : " (estimated)";
+    Logger::info("Original full image: ~" + std::to_string(static_cast<int>(original_mb)) + " MB " +
+                 "(" + std::to_string(image_width) + "x" + std::to_string(image_height) + " pixels" + dim_source + ")");
+    
+    if (published_count > 0) {
+        Logger::info("Detections to transmit: " + std::to_string(published_count) + " chips " +
+                     "(variable sizes based on actual detections)");
+        
+        ss.str("");
+        ss << "Total chip data: ~" << chip_mb << " MB";
+        Logger::info(ss.str());
+        
+        ss.str("");
+        ss << "Data NOT transmitted: ~" << saved_mb << " MB";
+        Logger::info(ss.str());
+        
+        ss.str("");
+        ss << "Bandwidth savings: " << saved_percent << "%";
+        Logger::info(ss.str());
+        
+        if (saved_percent > 95.0) {
+            Logger::info("  └─ Excellent bandwidth optimization!");
+        } else if (saved_percent > 80.0) {
+            Logger::info("  └─ Good bandwidth savings");
+        } else if (saved_percent > 50.0) {
+            Logger::info("  └─ Moderate bandwidth savings");
+        } else {
+            Logger::info("  └─ Limited bandwidth savings (large detections)");
+        }
+    } else {
+        Logger::info("No detections published - no chip data transmitted");
+        Logger::info("Bandwidth savings: 100% (no data sent)");
+    }
 }
 
 } // namespace sar_atr

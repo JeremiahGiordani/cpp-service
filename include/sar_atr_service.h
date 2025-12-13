@@ -58,6 +58,13 @@ private:
      */
     void processAndPublishResults(const std::string& nitf_path,
                                    const std::vector<DetectionResult>& detections);
+    
+    /**
+     * @brief Calculate and log bandwidth savings from chip-based transmission
+     */
+    void calculateBandwidthSavings(const std::string& nitf_path,
+                                    const std::vector<DetectionResult>& detections,
+                                    int published_count);
 };
 
 } // namespace sar_atr
