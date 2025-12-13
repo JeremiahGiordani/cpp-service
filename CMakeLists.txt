@@ -6,16 +6,21 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(WEBSOCKETPP REQUIRED websocketpp)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 pkg_check_modules(YAMLCPP REQUIRED yaml-cpp)
+
+# Find Boost (required by websocketpp)
+find_package(Boost REQUIRED COMPONENTS system)
+
+# websocketpp is header-only, just need the include path
+# It's typically installed to /usr/include/websocketpp or /usr/local/include/websocketpp
 
 # Include directories
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
-    ${WEBSOCKETPP_INCLUDE_DIRS}
     ${JSONCPP_INCLUDE_DIRS}
     ${YAMLCPP_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
 )
 
 # Source files
@@ -35,6 +40,7 @@ add_executable(sar_atr_service ${SERVICE_SOURCES})
 target_link_libraries(sar_atr_service
     ${JSONCPP_LIBRARIES}
     ${YAMLCPP_LIBRARIES}
+    ${Boost_LIBRARIES}
     pthread
 )
 

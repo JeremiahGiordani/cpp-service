@@ -53,8 +53,8 @@ void AMQClient::connect(const std::string& broker_address) {
             }
         });
         
-        // Wait a bit for connection to establish
-        int retries = 50;
+        // Wait for connection to establish (10 seconds max)
+        int retries = 100;
         while (!connected_ && retries-- > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }

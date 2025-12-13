@@ -28,32 +28,50 @@ void SarAtrService::start() {
     Logger::info("System UUID: " + config_.system_uuid);
     Logger::info("Confidence Threshold: " + std::to_string(config_.confidence_threshold));
     
-    try {
-        // Connect to broker
-        amq_client_->connect(config_.broker_address);
-        Logger::info("Connected to message broker");
-        
-        // Subscribe to FileLocation_uci
-        Logger::info("Subscribing to FileLocation_uci topic");
-        amq_client_->subscribe("FileLocation_uci", 
-            [this](const std::string& message) {
-                this->handleFileLocationMessage(message);
-            });
-        
-        running_ = true;
-        
-        Logger::info("========================================");
-        Logger::info("Service initialized and ready");
-        Logger::info("========================================");
-        
-        // Keep service running
-        while (running_) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Retry connection logic
+    const int max_retries = 5;
+    const int retry_delay_ms = 2000; // 2 seconds
+    
+    for (int attempt = 1; attempt <= max_retries; ++attempt) {
+        try {
+            Logger::info("Connection attempt " + std::to_string(attempt) + " of " + std::to_string(max_retries));
+            
+            // Connect to broker
+            amq_client_->connect(config_.broker_address);
+            Logger::info("Connected to message broker");
+            
+            // Subscribe to FileLocation_uci
+            Logger::info("Subscribing to FileLocation_uci topic");
+            amq_client_->subscribe("FileLocation_uci", 
+                [this](const std::string& message) {
+                    this->handleFileLocationMessage(message);
+                });
+            
+            running_ = true;
+            
+            Logger::info("========================================");
+            Logger::info("Service initialized and ready");
+            Logger::info("========================================");
+            
+            // Keep service running
+            while (running_) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            
+            // If we get here, service stopped normally
+            return;
+            
+        } catch (const std::exception& e) {
+            Logger::error("Connection attempt " + std::to_string(attempt) + " failed: " + std::string(e.what()));
+            
+            if (attempt < max_retries) {
+                Logger::info("Retrying in " + std::to_string(retry_delay_ms / 1000) + " seconds...");
+                std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms));
+            } else {
+                Logger::error("Failed to connect after " + std::to_string(max_retries) + " attempts");
+                throw std::runtime_error("Failed to start service after multiple connection attempts");
+            }
         }
-        
-    } catch (const std::exception& e) {
-        Logger::error("Failed to start service: " + std::string(e.what()));
-        throw;
     }
 }
 

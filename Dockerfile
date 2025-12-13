@@ -1,5 +1,8 @@
 FROM ubuntu:22.04
 
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -9,7 +12,9 @@ RUN apt-get update && apt-get install -y \
     libwebsocketpp-dev \
     libjsoncpp-dev \
     libyaml-cpp-dev \
-    libboost-all-dev \
+    libboost-system-dev \
+    libboost-thread-dev \
+    libboost-random-dev \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 

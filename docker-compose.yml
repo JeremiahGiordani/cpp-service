@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ActiveMQ Message Broker
   activemq:
@@ -7,9 +5,16 @@ services:
     ports:
       - "61616:61616"  # JMS
       - "8161:8161"    # Web Console
-      - "9000:9000"    # WebSocket
+      - "61614:61614"  # WebSocket
+      - "61613:61613"  # STOMP (for test client)
     environment:
       - ACTIVEMQ_CONFIG_TRANSPORTCONNECTORS_WEBSOCKET_ENABLED=true
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -an | grep 61614 | grep LISTEN || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - sar_atr_network
 
@@ -17,9 +22,8 @@ services:
   sar_atr_service:
     build: .
     depends_on:
-      - activemq
-    environment:
-      - BROKER_ADDRESS=ws://activemq:9000
+      activemq:
+        condition: service_healthy
     volumes:
       - ./config/service_config.yaml:/etc/sar_atr/service_config.yaml
       - ./test_data:/data

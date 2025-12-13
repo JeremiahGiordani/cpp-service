@@ -1,10 +1,9 @@
-# SAR ATR Service Configuration
+# SAR ATR Service Configuration (Local Development)
 
 # AMQ Message Broker Configuration
 # WebSocket address of the ActiveMQ broker
-# Examples: ws://localhost:61614, ws://activemq:61614
-# Note: For Docker, use container name; for local use localhost
-broker_address: "ws://activemq:61614"
+# Use localhost when running locally (not in Docker)
+broker_address: "ws://localhost:61614"
 
 # Confidence Threshold
 # Minimum confidence score (0.0 to 1.0) required to publish detection results
