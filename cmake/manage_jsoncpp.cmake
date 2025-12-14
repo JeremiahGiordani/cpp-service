@@ -25,7 +25,6 @@ if(NOT JSONCPP_FOUND AND NOT jsoncpp_FOUND)
         GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
         GIT_TAG ${JSONCPP_VERSION}
         GIT_SHALLOW TRUE
-        OVERRIDE_FIND_PACKAGE
     )
     
     # Configure jsoncpp build options
@@ -36,24 +35,36 @@ if(NOT JSONCPP_FOUND AND NOT jsoncpp_FOUND)
     
     FetchContent_MakeAvailable(jsoncpp)
     
-    # Create interface library for consistent usage
+    # JsonCpp may create different targets depending on version
+    # Check what's available and create a consistent jsoncpp_lib alias
     if(NOT TARGET jsoncpp_lib)
-        add_library(jsoncpp_interface INTERFACE)
-        target_link_libraries(jsoncpp_interface INTERFACE jsoncpp_static)
-        add_library(jsoncpp_lib ALIAS jsoncpp_interface)
+        if(TARGET jsoncpp_static)
+            add_library(jsoncpp_lib ALIAS jsoncpp_static)
+            message(STATUS "  Using jsoncpp_static as jsoncpp_lib")
+        elseif(TARGET jsoncpp_lib_static)
+            add_library(jsoncpp_lib ALIAS jsoncpp_lib_static)
+            message(STATUS "  Using jsoncpp_lib_static as jsoncpp_lib")
+        elseif(TARGET JsonCpp::JsonCpp)
+            add_library(jsoncpp_lib ALIAS JsonCpp::JsonCpp)
+            message(STATUS "  Using JsonCpp::JsonCpp as jsoncpp_lib")
+        else()
+            message(FATAL_ERROR "Could not find jsoncpp target after building from source")
+        endif()
     endif()
 else()
     message(STATUS "--> Found JsonCpp\n")
     
     # Create consistent interface if using system library
     if(NOT TARGET jsoncpp_lib)
-        add_library(jsoncpp_interface INTERFACE)
-        if(TARGET jsoncpp_lib)
-            target_link_libraries(jsoncpp_interface INTERFACE jsoncpp_lib)
+        if(TARGET JsonCpp::JsonCpp)
+            add_library(jsoncpp_lib ALIAS JsonCpp::JsonCpp)
+        elseif(TARGET jsoncpp_lib_static)
+            add_library(jsoncpp_lib ALIAS jsoncpp_lib_static)
         else()
+            add_library(jsoncpp_interface INTERFACE)
             target_include_directories(jsoncpp_interface INTERFACE ${JSONCPP_INCLUDE_DIRS})
             target_link_libraries(jsoncpp_interface INTERFACE ${JSONCPP_LIBRARIES})
+            add_library(jsoncpp_lib ALIAS jsoncpp_interface)
         endif()
-        add_library(jsoncpp_lib ALIAS jsoncpp_interface)
     endif()
 endif()
