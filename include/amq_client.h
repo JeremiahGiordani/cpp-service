@@ -3,14 +3,13 @@
 
 #include <string>
 #include <functional>
-#include <websocketpp/config/asio_no_tls_client.hpp>
-#include <websocketpp/client.hpp>
 #include <thread>
 #include <atomic>
+#include <mutex>
+#include <queue>
 
 namespace sar_atr {
 
-typedef websocketpp::client<websocketpp::config::asio_client> WebSocketClient;
 typedef std::function<void(const std::string&)> MessageCallback;
 
 /**
@@ -60,17 +59,30 @@ public:
     void run();
     
 private:
-    WebSocketClient client_;
-    websocketpp::connection_hdl connection_hdl_;
+    int socket_fd_;
     std::atomic<bool> connected_;
+    std::atomic<bool> running_;
     std::thread run_thread_;
+    std::thread receive_thread_;
+    
+    std::string host_;
+    int port_;
+    std::string path_;
     
     MessageCallback message_callback_;
     
-    void onOpen(websocketpp::connection_hdl hdl);
-    void onMessage(websocketpp::connection_hdl hdl, WebSocketClient::message_ptr msg);
-    void onClose(websocketpp::connection_hdl hdl);
-    void onFail(websocketpp::connection_hdl hdl);
+    std::mutex send_mutex_;
+    std::queue<std::string> send_queue_;
+    
+    // WebSocket functions
+    bool connectSocket(const std::string& broker_address);
+    bool performWebSocketHandshake();
+    void receiveLoop();
+    void sendFrame(const std::string& data);
+    std::string receiveFrame();
+    void parseStompMessage(const std::string& message);
+    std::string createWebSocketFrame(const std::string& data);
+    bool parseWebSocketFrame(const std::string& data, std::string& payload);
 };
 
 } // namespace sar_atr
