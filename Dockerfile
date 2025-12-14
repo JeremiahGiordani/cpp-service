@@ -24,6 +24,7 @@ WORKDIR /app
 
 # Copy source code
 COPY include/ ./include/
+COPY cmake/ ./cmake/
 COPY src/ ./src/
 COPY CMakeLists.txt ./
 COPY config/ ./config/

@@ -4,38 +4,13 @@ project(sar_atr_service VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find required packages
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(JSONCPP REQUIRED jsoncpp)
-pkg_check_modules(YAMLCPP REQUIRED yaml-cpp)
-
-# Find Boost (required by websocketpp)
-find_package(Boost REQUIRED COMPONENTS system)
-
-# websocketpp is header-only, just need the include path
-# websocketpp is header-only, just need the include path
-# It's typically installed to /usr/include/websocketpp or /usr/local/include/websocketpp
-
-# Try to locate websocketpp headers (header-only library). You can override by
-# setting WEBSOCKETPP_INCLUDE_DIR when invoking CMake.
-find_path(WEBSOCKETPP_INCLUDE_DIR
-    NAMES websocketpp/config/asio_no_tls_client.hpp
-    HINTS ${CMAKE_PREFIX_PATH} /usr/local /usr
-)
-
-if(WEBSOCKETPP_INCLUDE_DIR)
-    message(STATUS "Found websocketpp headers at: ${WEBSOCKETPP_INCLUDE_DIR}")
-else()
-    message(FATAL_ERROR "websocketpp headers not found. Install websocketpp or set WEBSOCKETPP_INCLUDE_DIR to the include path containing websocketpp/config/asio_no_tls_client.hpp")
-endif()
+# Dependency Management
+include(cmake/manage_jsoncpp.cmake)
+include(cmake/manage_yamlcpp.cmake)
 
 # Include directories
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
-    ${JSONCPP_INCLUDE_DIRS}
-    ${YAMLCPP_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-    ${WEBSOCKETPP_INCLUDE_DIR}
 )
 
 # Source files
@@ -53,9 +28,8 @@ add_executable(sar_atr_service ${SERVICE_SOURCES})
 
 # Link libraries
 target_link_libraries(sar_atr_service
-    ${JSONCPP_LIBRARIES}
-    ${YAMLCPP_LIBRARIES}
-    ${Boost_LIBRARIES}
+    jsoncpp_lib
+    yaml-cpp::yaml-cpp
     pthread
 )
 
