@@ -171,9 +171,20 @@ build_websocketpp() {
     tmpdir=$(mktemp -d)
     pushd "$tmpdir" >/dev/null
     git clone --depth 1 https://github.com/zaphoyd/websocketpp.git
-    mkdir -p "$PREFIX/include"
-    # The websocketpp repo places headers in a top-level 'websocketpp' directory
-    cp -r websocketpp "$PREFIX/include/"
+    mkdir -p "$PREFIX/include/websocketpp"
+    # Copy headers but avoid copying .git/ (which can contain packed files with odd permissions)
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --exclude='.git' websocketpp/ "$PREFIX/include/websocketpp/"
+    else
+        # Use tar pipeline to avoid copying .git and to preserve correct permissions
+        (cd websocketpp && tar --exclude='.git' -cf - .) | (mkdir -p "$PREFIX/include/websocketpp" && tar -xf - -C "$PREFIX/include/websocketpp")
+    fi
+    # Ensure user can read/write the installed headers
+    if ! chmod -R u+rwX "$PREFIX/include/websocketpp" 2>/dev/null; then
+        echo "Warning: could not adjust permissions on $PREFIX/include/websocketpp.\n"
+        echo "It may be owned by another user. If you see permission denied errors, remove or chown the directory and re-run the script, e.g.:"
+        echo "  rm -rf \"$PREFIX/include/websocketpp\" && $0 --deps-local"
+    fi
     popd >/dev/null
     rm -rf "$tmpdir"
 }
