@@ -214,19 +214,34 @@ if [ "$DEPS_LOCAL" -eq 1 ]; then
         echo "websocketpp headers not found; installing locally into $PREFIX"
         build_websocketpp
     fi
-    # Boost is required for Boost::system; try CMake configure and if it fails, offer to build boost
-    echo "Attempting CMake configure to verify Boost availability..."
+    # Ensure websocketpp headers exist (header-only); install locally if missing
+    if ! has_websocketpp; then
+        echo "websocketpp headers not found; installing locally into $PREFIX"
+        build_websocketpp
+    fi
+
+    # Try a CMake configure to verify everything is discoverable. If this still fails
+    # we won't attempt to build Boost automatically; instead surface a clear message
+    # so the user can decide how to provide Boost (system package or custom prefix).
+    echo "Attempting CMake configure..."
     mkdir -p "$ROOT_DIR/build"
     pushd "$ROOT_DIR/build" >/dev/null
-    if ! cmake .. -DCMAKE_PREFIX_PATH="$PREFIX" >/dev/null 2>&1; then
-        echo "CMake configure failed (Boost or other libs missing)."
-        read -r -p "Do you want to attempt building Boost locally into $PREFIX? [y/N]: " yn || true
-        case "$yn" in
-            [Yy]*) build_boost ;;
-            *) echo "Skipping Boost build. CMake configure will likely fail. Exiting."; exit 1 ;;
-        esac
-    else
+    if cmake .. -DCMAKE_PREFIX_PATH="$PREFIX" >/dev/null 2>&1; then
         echo "CMake configure succeeded.";
+    else
+        echo ""
+        echo "Error: CMake configure failed after installing local deps."
+        echo "Possible causes: Boost headers/libs not found or other dependencies missing."
+        echo "Suggestions:"
+        echo "  - Install Boost development packages system-wide (requires sudo), e.g.:"
+        echo "      sudo dnf install boost-devel"
+        echo "  - Or point CMake to an alternate prefix where Boost is installed:"
+        echo "      cmake .. -DCMAKE_PREFIX_PATH=/path/to/prefix"
+        echo "  - If websocketpp headers are in a custom location, set WEBSOCKETPP_INCLUDE_DIR when configuring CMake:" 
+        echo "      cmake .. -DWEBSOCKETPP_INCLUDE_DIR=/path/to/include -DCMAKE_PREFIX_PATH=$PREFIX"
+        echo ""
+        popd >/dev/null
+        exit 1
     fi
     popd >/dev/null
 fi
@@ -237,6 +252,7 @@ mkdir -p "$ROOT_DIR/build"
 cd "$ROOT_DIR/build"
 
 echo "Running CMake..."
+echo "Using Prefix: $PREFIX"
 cmake .. -DCMAKE_PREFIX_PATH="$PREFIX"
 
 echo "Building project (make -j$JOBS)..."
