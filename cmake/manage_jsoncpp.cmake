@@ -1,6 +1,9 @@
 set(JSONCPP_VERSION 1.9.5)
 message(STATUS "MANAGING DEPENDENCY: JsonCpp (Version ${JSONCPP_VERSION})\n")
 
+# Save the current C++ standard
+set(SAVED_CMAKE_CXX_STANDARD ${CMAKE_CXX_STANDARD})
+
 # Try to find JsonCpp using pkg-config first
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
@@ -20,6 +23,13 @@ if(NOT JSONCPP_FOUND AND NOT jsoncpp_FOUND)
     message(STATUS "--> Unable to Find JsonCpp - Building from Source\n")
 
     include(FetchContent)
+    
+    # Configure jsoncpp build options BEFORE declaring
+    set(JSONCPP_WITH_TESTS OFF CACHE BOOL "Build jsoncpp tests" FORCE)
+    set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "Run jsoncpp tests" FORCE)
+    set(JSONCPP_WITH_PKGCONFIG_SUPPORT OFF CACHE BOOL "Generate pkgconfig" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+    
     FetchContent_Declare(
         jsoncpp
         GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
@@ -27,13 +37,25 @@ if(NOT JSONCPP_FOUND AND NOT jsoncpp_FOUND)
         GIT_SHALLOW TRUE
     )
     
-    # Configure jsoncpp build options
-    set(JSONCPP_WITH_TESTS OFF CACHE BOOL "Build jsoncpp tests" FORCE)
-    set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "Run jsoncpp tests" FORCE)
-    set(JSONCPP_WITH_PKGCONFIG_SUPPORT OFF CACHE BOOL "Generate pkgconfig" FORCE)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
-    
     FetchContent_MakeAvailable(jsoncpp)
+    
+    # Set C++ standard for jsoncpp targets after they're created
+    if(TARGET jsoncpp_static)
+        target_compile_features(jsoncpp_static PUBLIC cxx_std_17)
+        set_target_properties(jsoncpp_static PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+            POSITION_INDEPENDENT_CODE ON
+        )
+    endif()
+    if(TARGET jsoncpp_lib_static)
+        target_compile_features(jsoncpp_lib_static PUBLIC cxx_std_17)
+        set_target_properties(jsoncpp_lib_static PROPERTIES
+            CXX_STANDARD 17
+            CXX_STANDARD_REQUIRED ON
+            POSITION_INDEPENDENT_CODE ON
+        )
+    endif()
     
     # JsonCpp may create different targets depending on version
     # Check what's available and create a consistent jsoncpp_lib alias
