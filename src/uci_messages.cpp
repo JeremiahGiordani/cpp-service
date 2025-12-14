@@ -149,4 +149,73 @@ std::string createAtrProcessingResultMessage(const std::vector<std::string>& ent
     return Json::writeString(writer, root);
 }
 
+std::string createProductMetadataMessage(const std::string& product_metadata_uuid,
+                                         const std::string& entity_uuid,
+                                         const SystemInfo& system_info) {
+    Json::Value root;
+    Json::Value& file_location = root["FileLocation"];
+    
+    // Namespace
+    file_location["@xmlns"] = "namespace";
+    
+    // Security Information
+    Json::Value& security = file_location["SecurityInformation"];
+    
+    // Message Header
+    Json::Value& header = file_location["MessageHeader"];
+    header["SystemID"]["UUID"] = system_info.system_uuid;
+    header["SystemID"]["DescriptiveLabel"] = system_info.system_description;
+    header["Timestamp"] = getCurrentTimestamp();
+    header["SchemaVersion"] = "002.3";
+    header["Mode"] = "SIMULATION";
+    header["ServiceID"]["UUID"] = system_info.system_uuid;
+    header["ServiceID"]["DescriptiveLabel"] = system_info.system_description;
+    header["ServiceID"]["ServiceVersion"] = system_info.service_version;
+    
+    // Message Data
+    Json::Value& data = file_location["MessageData"];
+    data["ProductMetadataID"] = product_metadata_uuid;
+    data["ProductDescription"]["ProcessingType"] = "AUTOMATIC_TARGET_RECOGNITION";
+    data["EntityMetadata"]["EntityID"]["UUID"] = entity_uuid;
+    
+    // Convert to string
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "";
+    return Json::writeString(writer, root);
+}
+
+std::string createProductLocationMessage(const std::string& product_metadata_uuid,
+                                         const std::string& output_file_path,
+                                         const SystemInfo& system_info) {
+    Json::Value root;
+    Json::Value& file_location = root["FileLocation"];
+    
+    // Namespace
+    file_location["@xmlns"] = "namespace";
+    
+    // Security Information
+    Json::Value& security = file_location["SecurityInformation"];
+    
+    // Message Header
+    Json::Value& header = file_location["MessageHeader"];
+    header["SystemID"]["UUID"] = system_info.system_uuid;
+    header["SystemID"]["DescriptiveLabel"] = system_info.system_description;
+    header["Timestamp"] = getCurrentTimestamp();
+    header["SchemaVersion"] = "002.3";
+    header["Mode"] = "SIMULATION";
+    header["ServiceID"]["UUID"] = system_info.system_uuid;
+    header["ServiceID"]["DescriptiveLabel"] = system_info.system_description;
+    header["ServiceID"]["ServiceVersion"] = system_info.service_version;
+    
+    // Message Data
+    Json::Value& data = file_location["MessageData"];
+    data["ProductMetadataID"]["UUID"] = product_metadata_uuid;
+    data["LocationAndStatus"]["Location"]["Network"]["Address"] = output_file_path;
+    
+    // Convert to string
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "";
+    return Json::writeString(writer, root);
+}
+
 } // namespace sar_atr

@@ -51,6 +51,28 @@ std::string createEntityMessage(const DetectionResult& detection, const SystemIn
  */
 std::string createAtrProcessingResultMessage(const std::vector<std::string>& entity_uuids);
 
+/**
+ * @brief Create ProductMetadata UCI message
+ * @param product_metadata_uuid UUID for this ProductMetadata message
+ * @param entity_uuid UUID of the associated Entity message
+ * @param system_info System identification information
+ * @return JSON string of the ProductMetadata message
+ */
+std::string createProductMetadataMessage(const std::string& product_metadata_uuid,
+                                         const std::string& entity_uuid,
+                                         const SystemInfo& system_info);
+
+/**
+ * @brief Create ProductLocation UCI message
+ * @param product_metadata_uuid UUID of the associated ProductMetadata message
+ * @param output_file_path File path to the product/chip
+ * @param system_info System identification information
+ * @return JSON string of the ProductLocation message
+ */
+std::string createProductLocationMessage(const std::string& product_metadata_uuid,
+                                         const std::string& output_file_path,
+                                         const SystemInfo& system_info);
+
 } // namespace sar_atr
 
 #endif // UCI_MESSAGES_H

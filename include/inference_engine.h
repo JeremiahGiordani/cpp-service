@@ -76,12 +76,13 @@ struct BoundingBox {
  * @brief Single detection result from the inference engine
  * 
  * Represents one detected/classified target in the imagery with its
- * classification, confidence score, and location.
+ * classification, confidence score, location, and optional output file path.
  */
 struct DetectionResult {
     std::string classification;  ///< Target classification/type (e.g., "T-72", "BMP-2")
     float confidence;            ///< Confidence score [0.0, 1.0] where 1.0 is highest confidence
     BoundingBox bounding_box;    ///< Location of detection in normalized XYXY coordinates
+    std::string output_file_path; ///< Optional: Path to chip/product file for this detection (empty if not generated)
 };
 
 /**

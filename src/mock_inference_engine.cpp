@@ -46,6 +46,13 @@ std::vector<DetectionResult> MockInferenceEngine::process(const std::string& nit
         detection.bounding_box.x2 = std::min(1.0f, x1 + width);
         detection.bounding_box.y2 = std::min(1.0f, y1 + height);
         
+        // 50% chance of generating an output file path
+        if (rng_() % 2 == 0) {
+            detection.output_file_path = "/output/chips/chip_" + std::to_string(rng_() % 10000) + ".nitf";
+        } else {
+            detection.output_file_path = "";  // No output file for this detection
+        }
+        
         results.push_back(detection);
     }
     

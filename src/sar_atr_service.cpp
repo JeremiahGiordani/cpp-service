@@ -151,19 +151,47 @@ void SarAtrService::processAndPublishResults(const std::string& nitf_path,
                 // Create and send Entity message
                 std::string entity_msg = createEntityMessage(detection, system_info_);
                 
-                // Extract the entity UUID from the message (we need it for AtrProcessingResult)
+                // Extract the entity UUID from the message (we need it for AtrProcessingResult and ProductMetadata)
                 Json::Value root;
                 Json::CharReaderBuilder builder;
                 std::string errs;
                 std::istringstream iss(entity_msg);
+                std::string entity_uuid;
+                
                 if (Json::parseFromStream(builder, iss, &root, &errs)) {
-                    std::string entity_uuid = root["Entity"]["MessageData"]["EntityID"]["UUID"].asString();
+                    entity_uuid = root["Entity"]["MessageData"]["EntityID"]["UUID"].asString();
                     entity_uuids.push_back(entity_uuid);
                 }
                 
                 amq_client_->publish("Entity_uci", entity_msg);
-                Logger::info("  └─ Published Entity_uci message for " + detection.classification);
+                Logger::info("  └─ Published Entity_uci message for " + detection.classification + 
+                            " (Entity UUID: " + entity_uuid + ")");
                 published_count++;
+                
+                // If detection has an output file path, publish ProductMetadata and ProductLocation
+                if (!detection.output_file_path.empty()) {
+                    try {
+                        // Generate UUID for ProductMetadata
+                        std::string product_metadata_uuid = generateUUID();
+                        
+                        // Create and publish ProductMetadata message
+                        std::string product_metadata_msg = createProductMetadataMessage(
+                            product_metadata_uuid, entity_uuid, system_info_);
+                        amq_client_->publish("ProductMetadata_uci", product_metadata_msg);
+                        Logger::info("  └─ Published ProductMetadata_uci message (UUID: " + 
+                                    product_metadata_uuid + ")");
+                        
+                        // Create and publish ProductLocation message
+                        std::string product_location_msg = createProductLocationMessage(
+                            product_metadata_uuid, detection.output_file_path, system_info_);
+                        amq_client_->publish("ProductLocation_uci", product_location_msg);
+                        Logger::info("  └─ Published ProductLocation_uci message (path: " + 
+                                    detection.output_file_path + ")");
+                        
+                    } catch (const std::exception& e) {
+                        Logger::error("Failed to publish Product messages: " + std::string(e.what()));
+                    }
+                }
                 
             } catch (const std::exception& e) {
                 Logger::error("Failed to publish Entity message: " + std::string(e.what()));

@@ -10,4 +10,6 @@ broker_port: 61613
 topics:
   - "Entity_uci"
   - "AtrProcessingResult_uci"
+  - "ProductMetadata_uci"
+  - "ProductLocation_uci"
   # - "FileLocation_uci"  # Uncomment to also monitor input messages
