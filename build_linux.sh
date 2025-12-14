@@ -116,10 +116,10 @@ fi
 
 ensure_prefix_env() {
     # Ensure pkg-config and CMake can find local installs
-    export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
-    export CMAKE_PREFIX_PATH="$PREFIX:$CMAKE_PREFIX_PATH"
-    export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
-    export PATH="$PREFIX/bin:$PATH"
+    export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+    export CMAKE_PREFIX_PATH="$PREFIX:${CMAKE_PREFIX_PATH:-}"
+    export LD_LIBRARY_PATH="$PREFIX/lib:${LD_LIBRARY_PATH:-}"
+    export PATH="$PREFIX/bin:${PATH:-}"
 }
 
 build_jsoncpp() {
@@ -148,6 +148,32 @@ build_yaml_cpp() {
     make -j"$JOBS"
     make install
     popd >/dev/null
+    popd >/dev/null
+    rm -rf "$tmpdir"
+}
+
+has_websocketpp() {
+    # Check common install locations and local prefix
+    if [ -f "$PREFIX/include/websocketpp/config/asio_no_tls_client.hpp" ]; then
+        return 0
+    fi
+    if [ -f "/usr/include/websocketpp/config/asio_no_tls_client.hpp" ]; then
+        return 0
+    fi
+    if [ -f "/usr/local/include/websocketpp/config/asio_no_tls_client.hpp" ]; then
+        return 0
+    fi
+    return 1
+}
+
+build_websocketpp() {
+    echo "Installing websocketpp headers into $PREFIX..."
+    tmpdir=$(mktemp -d)
+    pushd "$tmpdir" >/dev/null
+    git clone --depth 1 https://github.com/zaphoyd/websocketpp.git
+    mkdir -p "$PREFIX/include"
+    # The websocketpp repo places headers in a top-level 'websocketpp' directory
+    cp -r websocketpp "$PREFIX/include/"
     popd >/dev/null
     rm -rf "$tmpdir"
 }
@@ -182,6 +208,11 @@ if [ "$DEPS_LOCAL" -eq 1 ]; then
     fi
     if ! pkg-config --exists yaml-cpp; then
         build_yaml_cpp
+    fi
+    # websocketpp is header-only and may not be available via pkg-config; install locally if missing
+    if ! has_websocketpp; then
+        echo "websocketpp headers not found; installing locally into $PREFIX"
+        build_websocketpp
     fi
     # Boost is required for Boost::system; try CMake configure and if it fails, offer to build boost
     echo "Attempting CMake configure to verify Boost availability..."

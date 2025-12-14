@@ -13,7 +13,21 @@ pkg_check_modules(YAMLCPP REQUIRED yaml-cpp)
 find_package(Boost REQUIRED COMPONENTS system)
 
 # websocketpp is header-only, just need the include path
+# websocketpp is header-only, just need the include path
 # It's typically installed to /usr/include/websocketpp or /usr/local/include/websocketpp
+
+# Try to locate websocketpp headers (header-only library). You can override by
+# setting WEBSOCKETPP_INCLUDE_DIR when invoking CMake.
+find_path(WEBSOCKETPP_INCLUDE_DIR
+    NAMES websocketpp/config/asio_no_tls_client.hpp
+    HINTS ${CMAKE_PREFIX_PATH} /usr/local /usr
+)
+
+if(WEBSOCKETPP_INCLUDE_DIR)
+    message(STATUS "Found websocketpp headers at: ${WEBSOCKETPP_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "websocketpp headers not found. Install websocketpp or set WEBSOCKETPP_INCLUDE_DIR to the include path containing websocketpp/config/asio_no_tls_client.hpp")
+endif()
 
 # Include directories
 include_directories(
@@ -21,6 +35,7 @@ include_directories(
     ${JSONCPP_INCLUDE_DIRS}
     ${YAMLCPP_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
+    ${WEBSOCKETPP_INCLUDE_DIR}
 )
 
 # Source files
